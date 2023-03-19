@@ -1,0 +1,525 @@
+---
+title: "ADZD - list 3"
+subtitle: "Prediction error and information criteria"
+header-includes:
+   - \usepackage{amsmath}
+output:
+  pdf_document:
+    dev: cairo_pdf
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE,
+  fig.width = 5, fig.height = 3, fig.align="center")
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+library(grid)
+library(bigstep)
+library(lemon)
+
+set.seed(0)
+theme = theme(title = element_text(size = 9))
+```
+
+# Introduction
+We consider linear model $Y = \beta X + \epsilon$, where $X$ is a $n \times p$ plan matrix, $\epsilon \sim N(0_n, \sigma^2 I_{n \times n})$ is a vector representing random noise and $\beta \in R^n$ is a vector of parameters. Let $\hat \beta$ be the estimate of $\beta$ based on $Y$ and some subset $X_{\tilde p}$ of $X$ columns. This report discuss some criteria of $X_{\tilde p}$ selection. 
+
+### Prediction error
+Least squares estimator $\hat \beta_{LS}$ minimizes the error in the training sample (a.k.a. residual sum of squares) $RSS = ||Y - \hat Y||^2,$ where $\hat Y = X \hat \beta$ and $Y$ is the response used to fit the model. It might seem to be a good idea to choose $X_{\tilde p}$ resulting in smallest value of $RSS$, but it doesn't make sense when comparing models with different number of columns, because $RSS$ never increases when we add more variables. The thing we want to minimize instead is the *prediction error* defined as
+$$PE = E(\hat Y - Y^*)^2,$$
+
+where $Y^* = X\beta + \epsilon^*$ and $\epsilon^*$ is a new noise independent of that in training sample. The expression can be rewritten as follows:
+
+$$PE = E||X\hat \beta + \epsilon^* - X \beta||^2 = E\sum_{i=1}^n (X(\beta - \hat \beta) + \epsilon^*)^2 =
+E \sum_{i=1}^n [(X(\beta - \hat \beta))^2 + 2X(\beta - \hat \beta) \epsilon^* + (\epsilon^*)^2] = $$
+$$E \sum_{i=1}^n [(X(\beta - \hat \beta))^2 + 2 \sum_{i=1}^n E[X(\beta - \hat \beta)] E[\epsilon^*] + \sum_{i=1}^n E(\epsilon^*)^2] = 
+E \sum_{i=1}^n (X(\beta - \hat \beta))^2 + 0 + n\sigma^2 = E||X(\beta - \hat \beta)||^2 + n \sigma^2$$
+
+If we use least squares estimator for parameters $\hat \beta = (X^TX)^{-1}X^TY$, then $\hat Y = X \hat \beta = X(X^TX)^{-1}X^TY = MY$ and by Stein's identity 
+$$ E||X(\beta - \hat \beta)||^2 = E[RSS] + 2tr(M) \sigma^2 - n\sigma^2 \implies PE = E[RSS] + 2tr(M) \sigma^2.$$
+
+Trace of $M$ is $p$ if it's full rank and $PE = E[RSS] + 2p\sigma^2$ and if $\sigma^2$ is unknown it should be replaced with its unbiased estimator $s^2 = \frac{RSS}{n-p}$. This is how we can compute the true expected value of RSS:
+
+$$E[RSS] = E||Y - \hat Y||^2 = E||X\beta + \epsilon - X\hat \beta||^2 = E||X\beta + \epsilon - X (X^TX)^{-1}X^TY||^2 = $$
+$$E||X\beta + \epsilon - X (X^TX)^{-1}X^T(X\beta + \epsilon)||^2 = E||(I - M)\epsilon + X\beta - X(X^TX)^{-1}(X^TX)\beta||^2 = $$
+$$E||(I - M)\epsilon + X\beta - X\beta||^2 = E||(I - M)\epsilon||^2 = E||z||^2 = \sum E[z_i^2]$$
+
+It can be shown that $z = (I - M)\epsilon \sim N(0, \Sigma = \sigma^2(I-M))$, thus $$\sum E[z_i^2] = \sum Var[z_i] = tr(\Sigma) = \sigma^2[tr(I - M)] = \sigma^2[tr(I) - tr(M)] = \sigma^2[n - p].$$
+
+We have shown that $E[RSS] = \sigma^2(n-p)$. Finally we can write the true expected value of prediction error as
+
+$$PE = n\sigma^2 - p\sigma^2 + 2p\sigma^2 = \sigma^2(n+p).$$
+
+Instead of computing the true value we could use estimator $\hat PE = RSS + 2p\sigma^2$ or its equivalent with unknown $\sigma$. Another way of estimating the prediction error is by this formula which makes it easy to compute result of leave-one-out cross validation:
+
+$$\hat PE = \sum_{i=1}^n \left( \frac{Y_i - \hat Y_i}{1 - M_{i,i}} \right)^2,$$
+
+where $M = X(XX^T)^{-1}X^T$ is a matrix of projection onto $Lin(X)$ ($X$ denotes here $X_{\tilde p}$, a subset of $X$).
+
+### Information Criteria
+This section describe likelihood-based criteria of selection of best number of parameters for data model $M_k: f(x, \theta)$ with $\theta \in R^k$. We define likelihood function $L(X, \theta) = \Pi_{i=1}^n f(x,\theta)$
+and log-likelihood as $$l(X, \theta) = \log L(X, \theta).$$ 
+
+**Akaike Information Criterion (AIC)** is the one that maximizes the value of
+
+$$AIC(M_k) = l(x, \hat \theta_{MLE}) - k,$$
+
+which in case of linear model $Y = X \beta + \epsilon$ can be rewritten as
+$$AIC(M_k) = C(n, \sigma) - \frac{RSS}{2\sigma^2} - k.$$
+Maximizing the expression above corresponds to minimizing $RSS + 2\sigma^2 k$, wchich is the same as SURE estimator ($k$ denotes here the number of selected columns).
+
+In case $\sigma^2$, the variance of random error in a sample is unknown it should be replaced with its **biased** estimator $\hat \sigma^2_{MLE} = \frac{RSS}{n}$ which leads to 
+$$AIC(M_k) = C(n) - \frac{n}{2\log(RSS)} - k$$
+and minimizing the value of $n\log(RSS) + 2k$.
+
+AIC rewards goodness of fit assessed by the likelihood function, but at the same time imposes a penalty on increasing the number of parameters. Without that penalty, we would always choose a model with all avaiable variables which would lead to massive overfitting. Some remarks about practical use of AIC:
+
+1. In most cases we cannot afford computing AIC for all possible models as it would require fitting a model $2^p$ times. Instead we use heuristic procedures which with large probability return model close to optimal, some of which are implemented by `bigstep` library and used to obtain results in this report.
+
+2. It can be shown that in terms of multiple hypothesis testing, if $X$ is orthogonal, AIC marks as significant variables $\hat \beta_i$ such that $|\hat \beta_i| > \sigma\sqrt{2}$, wchich in case of $\sigma^2 = 1$ gives probability of type I error equal to $2(1 - F_{N(0,1)}(\sqrt(2)) \approx 0.16$ and for large number of hypotheses the number of false discoveries is also large.
+
+**Bayesian Information Criterion (BIC)** is similar to AIC, but it maximizes
+$$BIC(M_k) = k\log(n) - 2\log L(X, \hat \theta_{MLE})$$
+which is equivalent to minimizing the value of expression $RSS + \sigma^2 k \log(n)$. BIC selects variables such that $|\hat \beta_i| \geq \sigma \sqrt{\log(n)},$ which turns out to lead to much smaller chance of type I error (when $\sigma^2 = 1$ it is approximately $0.013$.) Thus there are way less false discoveries.
+
+**Other criteria**
+
+There are also other, more complex information criteria used in this report: mBIC, mBIC2 (implemented in `bigstep` library). Both of them control probability of type I error better than AIC and BIC when $p$ (all available columns) is large, because they depend on it in addition to $k$ (selected columns).
+
+# Task 1
+```{r setup_zad1, fig.height= 2.5, fig.width= 6}
+set.seed(600)
+# Setup parameters
+n = 1000
+p = 950
+k = 20
+cov_X = 1/1000
+sig = 1
+
+beta_true = c(rep.int(3.5,k), rep.int(0,p-k))
+X = matrix(rnorm(n*p, 0, sqrt(cov_X)), n, p)
+
+# Define experiment and functions  
+get_RSS = function(true, pred){sum((true-pred)^2)}
+
+task1_single_p = function(p, X, beta_true, sig){
+  # SETUP ----------
+  Y_train = X %*% beta_true + rnorm(nrow(X), 0, sig)
+  Xp = X[,1:p]
+  M = Xp %*% solve(t(Xp) %*% Xp) %*% t(Xp)
+  trM = sum(diag(M))
+  # if(trM != p){stop(paste("Something is wrong [p != tr(M)], p, tr(M):", p, trM))}
+  beta_LS = solve(t(Xp) %*% Xp) %*% t(Xp) %*% Y_train
+  Y_pred = Xp %*% beta_LS
+  # PREDICTION ERRORS ---------
+  RSS = sum((Y_train - Y_pred)^2)
+  PE_1 = sig^2*(n + p)
+  # PE_1 = sum((Xp %*% beta_true[1:p] - Y_pred)^2) + n*sig^2  # true PE
+  PE_2 = RSS + 2*p*sig^2                                    # SURE known sigma
+  PE_3 = RSS + 2*p*(RSS/(n-p))                              # SURE unknown sigma
+  PE_4 = sum(((Y_train-Y_pred)/(1-diag(M)))^2) # LOO CV
+  # AIC -----
+  # AIC -----
+  AIC_known = -n*log(sqrt(2*pi)) - RSS/2 - p             # known sigma
+  AIC_unknown = -n*log(sqrt(2*pi)) - n/2 * log(RSS) - p    # unknown sigma
+  # RESULTS ---
+  return(c(p, RSS, PE_1, PE_2, PE_3, PE_4, AIC_known, AIC_unknown))
+}
+
+task1_all_ps = function(ps, X, beta_true, sig){
+  results = sapply(ps, task1_single_p, X, beta_true, sig)
+  results = t(as.data.frame(results))
+  rownames(results) = NULL
+  colnames(results) = c( 'p','RSS',
+                         'PE1','PE2','PE3','PE4', 'AIC_known','AIC_unknown'
+                         )
+  return(results)
+}
+
+task1_replicate = function(ps, X, beta_true, sig = 1, iters = 100){
+  trials = list()
+  for (iter in 1:iters){
+    results = task1_all_ps(ps, X, beta_true, sig)
+    trials[[iter]] = results
+  }
+  return(trials)
+}
+
+average_dtfs = function(trials){
+  mean_results = array(unlist(trials), c(dim(trials[[1]]), length(trials))) %>% apply(c(1,2), mean) %>% data.frame()
+  colnames(mean_results) = colnames(trials[[1]])
+  return(mean_results)
+}
+
+ps = c(10, 20, 30, 100, 500, 950)
+task1_gathered = task1_replicate(ps, X, beta_true)
+task1_avg = average_dtfs(task1_gathered)
+```
+
+The table below show numeric results of experiment replicated 100 times, where `PE1`, `PE2`, `PE3`, `PE4` are respectively: true prediction error, SURE with known $\sigma^2$, SURE with unknown $\sigma^2$ and LOO cross-validation estimator.
+
+```{r task1_show_avg}
+task1_avg %>% knitr::kable(caption = "Task 1 - numeric results averaged over 100 reps (seed = 600)", digits = 2, booktabs = T) %>% kable_styling(latex_options = c("HOLD_position"))
+```
+
+## Boxplots (Prediction Error)
+```{r task1_boxplots, fig.width= 12, fig.height= 5}
+get_PE_diffs = function(df_lst, PE_col){
+  ps = unique(df_lst[[1]][,"p"])
+  r = sapply(df_lst, function(df){-df[,"PE1"] + df[,PE_col]}) %>% 
+    t() %>% as.data.frame()
+  colnames(r) = ps
+  valname = paste0(PE_col)
+  return(r %>% gather(key = "p", value = !!valname))
+}
+  
+PE_diffs_lst = lapply(
+  list("PE2", "PE3", "PE4"), 
+  function(pe){get_PE_diffs(task1_gathered, pe)})
+
+PE_diffs_merged = data.frame(
+  p = factor(as.numeric(PE_diffs_lst[[1]]$p)),
+  PE2 = PE_diffs_lst[[1]]$PE2,
+  PE3 = PE_diffs_lst[[2]]$PE3,
+  PE4 = PE_diffs_lst[[3]]$PE4
+)
+
+PE_diffs_long = gather(PE_diffs_merged, key = estimator, value = difference, c(2,3,4))
+
+big_boxplots_z1 = ggplot(PE_diffs_long, aes(x = p, fill = estimator, y = difference)) +
+  geom_boxplot() +
+  labs(title = "PE_EST - PE_TRUE",
+       subtitle = "100 replications")
+
+zoom_boxplots_z1 = ggplot(PE_diffs_long %>% filter(as.numeric(p) <= 5), aes(x = p, fill = estimator, y = difference)) + 
+  geom_boxplot() +
+  labs(title = "PE_EST - PE_TRUE",
+       subtitle = "100 replications, cut to p < 950")
+
+zoom_under_500_boxplots_z1 = ggplot(PE_diffs_long %>% filter(as.numeric(p) <= 4), aes(x = p, fill = estimator, y = difference)) + 
+  geom_boxplot() +
+  labs(title = "PE_EST - PE_TRUE",
+       subtitle = "100 replications, cut to p < 500")
+
+grid_arrange_shared_legend(big_boxplots_z1, zoom_boxplots_z1, zoom_under_500_boxplots_z1, ncol = 3, nrow = 1, top = "Results for n = 1000")
+```
+
+**Comment:**
+
+- The median of difference $\hat PE - PE$ oscillates around 0 for first two estimators for all $p \geq 20$. It means that the estimators are unbiased. Results seem to be the best for $p = 20$ which is the true number of parameters in model. For $p = 10$ which is less than the true number of model parameters, estimated prediction error is greater by about 10% than the theoretical value of prediction error.
+- For $p \geq 500$ interquartile range of estimator with unknown $\sigma$ becomes obviously wider than for known $\sigma$. 
+- Cross-validation prediction error becomes strongly biased for $p \geq 500$. 
+
+## Optimal model chosen by AIC
+```{r}
+# TODO W tym zadaniu może być coś nie tak, wyniki chyba nie zgadzają się z teorią
+merged_task1 = do.call(rbind, task1_gathered) %>% as.data.frame()
+p_chosen_AIC_known = c()
+p_chosen_AIC_unknown = c()
+
+for (i in 1: (nrow(merged_task1)/6)){
+  start = 6*(i-1) + 1
+  stop = start + 5
+  sub_df = merged_task1[start:stop,]
+  
+  max_known = max(sub_df$AIC_known)
+  p_chosen_AIC_known = c(
+    p_chosen_AIC_known, 
+    filter(sub_df, AIC_known == max_known)$p
+    )
+  
+  max_unknown = max(sub_df$AIC_unknown)
+  p_chosen_AIC_unknown = c(
+    p_chosen_AIC_unknown, 
+    filter(sub_df, AIC_unknown == max_unknown)$p
+    )
+}
+
+theme2 = theme(title = element_text(size = 4))
+p1 = ggplot() +
+  geom_bar(fill = I("orange"),
+    aes(x = factor(p_chosen_AIC_known, ordered = TRUE)),
+        stat = "count") + labs(x = "p", y = "", title = "Model selected by AIC with known variance (counts)") + theme2
+
+p2 = ggplot() +
+  geom_bar(fill = I("blue"),
+    aes(x = factor(p_chosen_AIC_unknown, ordered = TRUE)),
+        stat = "count") + labs(x = "p", y = "", title = "Model selected by AIC with unknown variance (counts)") + theme2
+
+grid.arrange(p1, p2, ncol = 2)
+```
+
+**Comment:**
+
+- When $\sigma$ is known AIC selects the true model about 60 out of 100 times, model with 30 variables instead of 20 with approximately 35 out of 100 times and 10 or 100 variables both about 2.5/100 out of times.
+- When $\sigma$ is unknown, then always model with all posible variables is selected. AIC is biased towards choosing model with large number of parameters.
+
+# Task 2
+In this task we apply AIC, BIC, mBIC and mBIC2 to find significant variables. I used `fastforward` procedure which should give worse results that `stepwise`, but works much faster for some criteria.
+
+```{r}
+compute_stat = function(big_model, beta, k = 20){
+  # This function computes all needed stats for big_model object
+  # k: true number of non-zero coefficients (first k should be)
+  # ------------------------------------------------------------------
+  # Extract summary from model returned from procedure
+  s_big_model = summary(big_model)
+  # Save estimated beta vector
+  chosen_vars = as.numeric(big_model$model)
+  b_hat = rep(0, length(beta))
+  b_hat[chosen_vars] = s_big_model$coefficients[-1, 1]
+  # Count discoveries; 5 -> first k vars are really non-zero
+  true_signal = c(rep(T, k), rep(F, length(beta)-k))
+  TD = sum(chosen_vars <= k)
+  FD = sum(chosen_vars > k)
+  # ||Y - Y_||^2 ----
+  # Xm: X selected by model, X: full dataset before procedure
+  Y_true = big_model$y
+  Y_hat = big_model$Xm %*% s_big_model$coefficients[,1]
+  # TODO sum or mean?
+  SEy = sum((Y_true - Y_hat)^2)
+  # ||beta - beta_||^2 -------
+  SEb = sum((beta - b_hat)^2)
+  # ||EY - Y_||^2 -------
+  SEex = sum((big_model$X %*% beta - big_model$Xm %*% s_big_model$coefficients[,1])^2)
+  # Power = prob. of not making Type II error
+  power = TD/k
+  c(FD, TD, power, SEy, SEb, SEex)
+}
+
+# Setup for replications
+iters = 100
+ps = c(20, 100, 500, 950)
+k = 5
+n = 1000
+m = 950
+# Fixed matrix X and fixed true beta (b)
+X = matrix(rnorm(n*m, 0, sqrt(1/n)), nrow=n, ncol=m)
+b = c(rep(3, k), rep(0, m-k))
+
+ps = c(50, 200, 500, 950)
+
+# Arrays for storing results
+# dim1[100]: iteration, dim2[6]: stat_name, dim3[4]: p 
+# dim2 == number of elements returned from compute_stat
+dim2 = 6
+results_aic = array(dim = c(iters, dim2, length(ps)))
+results_bic = array(dim = c(iters, dim2, length(ps)))
+results_mbic = array(dim = c(iters, dim2, length(ps)))
+results_mbic2 = array(dim = c(iters, dim2, length(ps)))
+
+# Replicate experiment and save results in proper arrays: ----
+for(i in 1:iters){
+  # Generate new Y with random noise
+  Y = X %*% b + rnorm(n)
+  # Prepare models with different ps
+  for(j in 1:length(ps)){
+    d = prepare_data(Y, X[,1:ps[j]], verbose = F)
+    
+    m_aic_ff = fast_forward(d, crit=aic)
+    results_aic[i,,j] = compute_stat(m_aic_ff, b[1:ps[j]])
+    
+    m_bic_ff = fast_forward(d, crit=bic)
+    results_bic[i,,j] = compute_stat(m_bic_ff, b[1:ps[j]])
+ 
+    m_mbic_ff = fast_forward(d, crit=mbic)
+    results_mbic[i,,j] = compute_stat(m_mbic_ff, b[1:ps[j]])
+   
+    m_mbic2_ff = fast_forward(d, crit=mbic2)
+    results_mbic2[i,,j] = compute_stat(m_mbic2_ff, b[1:ps[j]])
+  }
+}
+
+FDR = function(result){
+  fdr_fun = function(x){
+    FD = x[1]
+    TD = x[2]
+    return(ifelse(FD + TD == 0, 0, FD/(FD + TD)))
+  }
+  return(apply(result, 2, fdr_fun))
+}
+
+mean_FDR_aic = apply(apply(results_aic, 1, FDR), 1, mean)
+mean_FDR_bic = apply(apply(results_bic, 1, FDR), 1, mean)
+mean_FDR_mbic = apply(apply(results_mbic, 1, FDR), 1, mean)
+mean_FDR_mbic2 = apply(apply(results_mbic2, 1, FDR), 1, mean)
+
+mean_power_aic = apply(results_aic, c(2,3), mean)[3,]
+mean_power_bic = apply(results_bic, c(2,3), mean)[3,]
+mean_power_mbic = apply(results_mbic, c(2,3), mean)[3,]
+mean_power_mbic2 = apply(results_mbic2, c(2,3), mean)[3,]
+
+mean_MSEy_aic = apply(results_aic, c(2,3), mean)[4,]
+mean_MSEy_bic = apply(results_bic, c(2,3), mean)[4,]
+mean_MSEy_mbic = apply(results_mbic, c(2,3), mean)[4,]
+mean_MSEy_mbic2 = apply(results_mbic2, c(2,3), mean)[4,]
+
+# Mean False Discovery rate
+mean_FDRs = rbind(mean_FDR_aic,
+                   mean_FDR_bic,
+                   mean_FDR_mbic,
+                   mean_FDR_mbic2) %>% t() %>% as.data.frame()
+
+# Mean powers
+mean_powers = rbind(mean_power_aic,
+                   mean_power_bic,
+                   mean_power_mbic,
+                   mean_power_mbic2) %>% t() %>% as.data.frame()
+
+
+mean_MSEy = rbind(mean_MSEy_aic,
+                   mean_MSEy_bic,
+                   mean_MSEy_mbic,
+                   mean_MSEy_mbic2) %>% t() %>% as.data.frame()
+
+# Clean data
+criteria = c("AIC", "BIC", "mBIC", "mBIC2")
+colnames(mean_powers) = criteria
+colnames(mean_MSEy) = criteria
+colnames(mean_FDRs) = criteria
+
+mean_powers = cbind(p = factor(ps, ordered = TRUE), mean_powers)
+mean_FDRs = cbind(p = factor(ps, ordered = TRUE), mean_FDRs)
+mean_MSEy = cbind(p = factor(ps, ordered = TRUE), mean_MSEy)
+```
+```{r task2_plots, fig.width = 12}
+p1 = mean_powers %>% gather(criterion, value, -c(p)) %>%
+  ggplot(aes(fill = criterion, x = p, y = value)) + geom_bar(position="dodge", stat="identity") + labs(
+    x = "", y = "", title = "Estimated power vs p", 
+    subtitle = "Averaged over 100 reps"
+  ) + theme
+
+p2 = mean_MSEy %>% gather(criterion, value, -c(p)) %>%
+  ggplot(aes(fill = criterion, x = p, y = value)) + geom_bar(position="dodge", stat="identity") + labs(
+    x = "", y = "", title = "MSE of prediction vs p", 
+    subtitle = "Averaged over 100 reps"
+  ) + theme
+
+p3 = mean_FDRs %>% gather(criterion, value, -c(p)) %>%
+  ggplot(aes(fill = criterion, x = p, y = value)) + geom_bar(position="dodge", stat="identity") + labs(
+    x = "", y = "", title = "FDR vs p", 
+    subtitle = "Averaged over 100 reps"
+  ) + theme
+
+grid_arrange_shared_legend(p1, p2, p3, ncol = 3, position = "bottom")
+```
+
+```{r task2_table}
+knitr::kable(mean_powers, caption = "Task 2 - estimated powers averaged over 100 reps (seed = 600)", digits = 2, booktabs = T) %>% 
+  kable_styling(full_width = F, latex_options = c("HOLD_position"))
+
+knitr::kable(mean_MSEy, caption = "Task 2 - MSE averaged over 100 reps (seed = 600)", digits = 2, booktabs = T, format = "latex") %>% 
+  kable_styling(latex_options = c("HOLD_position"))
+
+knitr::kable(mean_FDRs, caption = "Task 2 - FDR averaged over 100 reps (seed = 600)", digits = 2, booktabs = T) %>%
+  kable_styling(latex_options = c("HOLD_position"))
+```
+
+**Comment:** 
+
+- AIC has the best estimated power among criteria. It is independent of number of parameters, similarly to the power of BIC criterion, which is beacuse of the fact that both criteria don't depend on $p$. We can see that powers of other criteria keep decreasing as the number of parameters increases. The one with the worst power is mBIC.
+- AIC has the best power, but at the same time its False Discovery Rate is the largest among all criteria. For small $p$ it's much bigger than other FDRs and when $p$ increases, FDR of BIC criterion goes up and starts to be more similar to FDR of AIC (but still smaller). Other criteria are really good in terms of FDR keeping it below value of 0.07 for all values of $p$ (their FDR increases slightly with $p$).
+- MSE of prediction is independent of $p$ for all criteria except AIC and BIC. For AIC and BIC it decreases when $p$ increases and the effect is more visible in AIC.
+
+# Task 3
+In this task we repeat experiments from task 1, but this time plan matrix has 5000 rows, which means that number of observations is much bigger than number of columns.
+
+```{r task3}
+set.seed(600)
+# Setup parameters
+n = 5000
+p = 950
+k = 20
+cov_X = 1/1000 # doesnt change!
+sig = 1
+
+beta_true = c(rep.int(3.5,k), rep.int(0,p-k))
+X = matrix(rnorm(n*p, 0, sqrt(cov_X)), n, p)
+
+ps = c(10, 20, 30, 100, 500, 950)
+task3_gathered = task1_replicate(ps, X, beta_true)
+task3_avg = average_dtfs(task3_gathered)
+
+task3_avg %>% knitr::kable(caption = "Task 3 - numeric results averaged over 100 reps (seed = 600)", digits = 2, booktabs = T) %>% kable_styling(latex_options = c("HOLD_position"))
+```
+
+## Boxplots (Prediction Error)
+
+```{r task3_plots, fig.height= 2.5, fig.width= 6}
+PE_diffs_lst = lapply(
+  list("PE2", "PE3", "PE4"), 
+  function(pe){get_PE_diffs(task3_gathered, pe)})
+
+PE_diffs_merged = data.frame(
+  p = factor(as.numeric(PE_diffs_lst[[1]]$p)),
+  PE2 = PE_diffs_lst[[1]]$PE2,
+  PE3 = PE_diffs_lst[[2]]$PE3,
+  PE4 = PE_diffs_lst[[3]]$PE4
+)
+
+PE_diffs_long = gather(PE_diffs_merged, key = estimator, value = difference, c(2,3,4))
+
+big_boxplots = ggplot(PE_diffs_long, aes(x = p, fill = estimator, y = difference)) + geom_boxplot() +
+  labs(title = "PE_EST - PE_TRUE",
+       subtitle = "100 replications")
+
+zoom_boxplots = ggplot(PE_diffs_long %>% filter(as.numeric(p) <= 5), aes(x = p, fill = estimator, y = difference)) + 
+  geom_boxplot() +
+  labs(title = "PE_EST - PE_TRUE",
+       subtitle = "100 replications, cut to p < 950")
+
+zoom_under_500_boxplots = ggplot(PE_diffs_long %>% filter(as.numeric(p) <= 4), aes(x = p, fill = estimator, y = difference)) + 
+  geom_boxplot() +
+  labs(title = "PE_EST - PE_TRUE",
+       subtitle = "100 replications, cut to p < 500")
+
+grid_arrange_shared_legend(big_boxplots_z1, zoom_boxplots_z1, zoom_under_500_boxplots_z1, ncol = 3, nrow = 1, top = "Results for n = 1000")
+  
+grid_arrange_shared_legend(big_boxplots + theme, zoom_boxplots + theme, zoom_under_500_boxplots + theme, ncol = 3, nrow = 1, top = "Results for n = 5000")
+```
+
+**Comment:** 
+
+## Models selected by AIC
+
+```{r task3_model}
+# TODO W tym zadaniu może być coś nie tak, wyniki chyba nie zgadzają się z teorią
+merged_task3 = do.call(rbind, task3_gathered) %>% as.data.frame()
+p_chosen_AIC_known = c()
+p_chosen_AIC_unknown = c()
+
+for (i in 1: (nrow(merged_task3)/6)){
+  start = 6*(i-1) + 1
+  stop = start + 5
+  sub_df = merged_task3[start:stop,]
+  
+  max_known = max(sub_df$AIC_known)
+  p_chosen_AIC_known = c(
+    p_chosen_AIC_known, 
+    filter(sub_df, AIC_known == max_known)$p
+    )
+  
+  max_unknown = max(sub_df$AIC_unknown)
+  p_chosen_AIC_unknown = c(
+    p_chosen_AIC_unknown, 
+    filter(sub_df, AIC_unknown == max_unknown)$p
+    )
+}
+
+theme2 = theme(title = element_text(size = 4))
+p1 = ggplot() +
+  geom_bar(fill = I("orange"),
+    aes(x = factor(p_chosen_AIC_known, ordered = TRUE)),
+        stat = "count") + labs(x = "p", y = "", title = "Model selected by AIC with known variance (counts)") + theme2
+
+p2 = ggplot() +
+  geom_bar(fill = I("blue"),
+    aes(x = factor(p_chosen_AIC_unknown, ordered = TRUE)),
+        stat = "count") + labs(x = "p", y = "", title = "Model selected by AIC with unknown variance (counts)") + theme2
+
+grid.arrange(p1, p2, ncol = 2)
+```
+

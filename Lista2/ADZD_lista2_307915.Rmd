@@ -1,0 +1,318 @@
+---
+title: "ADZD - lista 2"
+subtitle: "Porównanie metod estymacji średniej wielowymiarowego rozkładu normalnego pod kątem minimalizacji średniego błędu kwadratowego. "
+header-includes:
+   - \usepackage{amsmath}
+output:
+  pdf_document:
+    dev: cairo_pdf
+---
+# Wstęp
+Załóżmy, że dysponujemy zbiorem obserwacji $X_1, ... X_p$ - niezależnych zmiennych losowych z rozkładu normalnego o znanej wspólnej wariancji $\sigma^2$ i nieznanych, potencjalnie różnych średnich $\mu_1, ... \mu_p$, które chcemy estymować. Estymator największej wiarygodności jest wektorem średnich próbkowych $\hat\mu_{LS} = (\bar X_1, ... \bar X_p) = (X_1, ... X_p)$. Spośród estymatorów nieobciążonych jest on najlepszy pod kątem minimalizacji średniego błędu kwadratowego.
+
+$$MSE(\hat\mu_{LS}) = E||(\hat\mu_{LS} - \mu)||^2_2 = ... = p\sigma^2$$
+
+Możemy zredukować $MSE$ zastępując $\hat\mu_{LS}$ jednym z opisanych niżej estymatorów obciążonych.
+
+### Estymatory Jamesa-Steina
+Spróbujemy skonstruować estymator $\hat\mu_c = c\hat\mu_{LS}$, gdzie $c$ jest stałą dobraną tak by minimalizować $MSE$. Wtedy
+
+$$c = \frac{||\mu||^2}{||\mu||^2 + p\sigma^2} \in [0,1)$$
+
+$$MSE(\hat\beta_c) = c \cdot p\sigma^2 \leq p\sigma^2$$
+
+W ten sposób uzyskujemy estymator lepszy niż $\hat \mu_{LS}$, jednak niemożliwy do zastosowania w praktyce ze względu na to, że nie znamy prawdziwej wartości $\mu$. Odpowiedzią na ten problem jest korekta wprowadzona przez Jamesa i Steina (1961r.) polegająca na zastąpieniu nieznanego $c$ przybliżającym je wyrażeniem:
+
+$$c_{JS} = 1 - \frac{(p-2)\sigma^2}{||\hat\mu_{LS}||^2}$$
+
+Estymator ten nazywany jest **ściągającym do zera**. Korzystając z twierdzenia Steina można pokazać, że teoretyczna wartość $MSE$ dla estymatora Jamesa-Steina ściągającego do zera to 
+$$E||\hat\mu_{c_{JS}} - \mu||^2 = p \sigma^2 -\sigma^4 \frac{(p-2)^2}{||\mu_{LS}||^2} < p\sigma^2 \text{, gdy  } p > 2.$$
+
+Analogicznie konstruujemy **estymator ściągający do wspólnej średniej** szukając stałej $d$ takiej, by minimalizować $MSE$ estymatora $\hat\beta_d = (1-d)\hat\mu_{LS} + d \bar  X$ i uzyskujemy
+
+$$d = \frac{\sigma^2}{Var(\mu) + \sigma^2},$$
+
+$$MSE(\hat\beta_d) = \frac{p\sigma^2 Var(\mu) + \sigma^4}{Var(\mu) + \sigma^2} \leq p\sigma^2,$$
+gdzie $Var(\mu) = \frac{1}{p-1}||\mu - \bar \mu||^2.$ Wyrażenie $d$ z nieznaną nam wariancją możemy zastąpić przez
+$$d_{JS} = \frac{(p-3)\sigma^2}{(p-1)Var(\mu_{LS})}$$
+otrzymując w ten sposób drugi z estymatorów Jamesa-Steina.
+
+### Estymator powstały przez twarde ucięcie
+Wybieramy procedurę testowania istnotości (np. Bonferroniego) i defniujemy następujący estymator:
+$$
+\hat \mu = 
+\begin{cases}
+  X_i \text{,   gdy procedura odrzuciła } H_0: \beta_i = 0 \\
+  0   \text{,      gdy nie mamy podstaw do odrzucenia.} H_0: \beta_i = 0.
+\end{cases}
+$$
+
+Estymator ten nazywamy "twardym ucięciem" estymatora $\hat\mu_{LS}$. W przypadku procedur Bonferroniego i Benjamini'ego-Hochbegra $MSE(\hat\mu) \rightarrow_p MSE_{optymalne}$.
+
+### Estymator Bayesowski
+Tym razem rozważamy problem testowania hipotez postaci
+$$H_0: X_i \sim P_0 \quad \text{vs} \quad H_1: X_i \sim P_1,$$
+gdzie $P_0$ i $P_1$ są rozkładami o gęstościach odpowiednio $f_0, f_1$. *Funkcja straty* $c$ to funkcja która każdej parze ("stan faktyczny - s", "decyzja testu - d") przyporządkowuje wartość zgodnie z następującymi zasadami:
+
+- jeśli decyzja jest słuszna, $c(s,d) = 0,$
+- jeśli robimy błąd typu I $c(s,d) = c_0,$
+- jeśli robimy błąd typu II $c(s,d) = c_1.$
+
+Testowanie każdej hipotezy będzie polegało na odrzuceniu $H_0,i$, gdy statystyka testowa $X_i \in R$, gdzie $R$ nazywamy *obszarem odrzuceń*. **Rozważany przez nas estymator to taki, dla którego wybór obszaru $R$ minimalizuje wartość oczekiwaną straty.** Dysponując dodatkowo informacją o tym jak prawdopodobne jest że $H_{0,i}$ jest prawdziwa ($P(H_0)$) możemy wyznaczyć $R$ w następujący sposób:
+
+$$E[c] = E[c | H_0]P(H_0) + E[c|H_1](1-P(H_0))$$
+$$E[c|H_0] = 0 \cdot (1-P(I)) + c_0 P(I)$$
+
+$$E[c|H_1] = 0 \cdot (1-P(II)) + c_1 P(II)$$
+Za $P(I), P(II)$ postawimy odpowiednio całki $\int_R f_0(x) dx$ i $1 - \int_R f_1(x) dx$ otrzymując w ten sposób
+$$E[c] = P(H_0) \cdot c_0 \int_R f_0(x) dx + P(H_1) \cdot c_1 \left(1 - \int_R f_1(x) dx \right) = c_1 + \int_Rc_0f_0(x)P(H_0) - c_1f_1(x)P(H_1) dx.$$
+
+Dla ustalonych $c_0, c_1, P(H_0), P(H_1), f_0(x), f_1(x)$ wyrażenie przyjmuje najmniejszą wartość, gdy całka jest jak najbardziej ujemna, a więc gdy wybieramy maksymalny obszar $R$ dla którego wyrażenie podcałkowe jest ujemne. Otrzymamy w ten sposób
+$$R = \{ x: \frac{f_0(x)}{f_1(x)} < \frac{c_1P(H_1)}{c_0P(H_0)}\}$$
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE,
+  fig.width = 5, fig.height = 3, fig.align="center")
+library(tidyverse)
+library(pracma)
+library(knitr)
+library(kableExtra)
+library(gridExtra)
+library(grid)
+library(reshape2)
+library(lemon)
+
+set.seed(0)
+theme = theme(title = element_text(size = 7))
+```
+
+# Zadanie 1
+Estymator współczynników regresji liniowej otrzymany metodą najmniejszych kwadratów dany jest wzorem $\hat \beta_{LS} = (X^TX)^{-1}X^TY$ i ma rozkład normalny $N(\beta, \sigma^2 (X^TX)^{-1})$, mamy więc do czynienia z problemem estymacji średnich w wielowymiarowym rozkładzie normalnym. W przypadku, gdy macierz $X$ jest ortogonalna, wyrażenie $(X^TX)^{-1} = I$ znika a estymator jest postaci
+$$\hat \beta_{OLS} = X^TY$$
+Zakładając, że wariancja błędów losowych jest znana możemy obliczyć również p-wartości dla testów istotności $\hat\beta_{LS}$, które przydadzą się w zadaniu 3. Wiemy, że przy hipotezie zerowej $\hat\beta_{LS} = \hat\beta$ ma rozkład normalny ze średnią $0$ i wariancją $\sigma^2$, zatem p-wartość wyliczymy ze wzoru
+$$pval(\hat\beta_i) = 2(1 - \Phi_{N(0,\sigma^2)}(|\hat\beta_i|)).$$
+
+## Zadanie 2
+Estymatory zostały wyznaczone we wstępie.
+
+## Zadanie 3
+W każdej replikacji eksperymentu generujemy wektor współczynników "prawdziwego" modelu $\beta$ tak, że element $\beta_i$ z prawdopodobieństwem $\epsilon$ pochodzi z rozkładu normalnego z wariancją $\tau^2$, a z $1 - \epsilon$ jest zerem. Porównamy wyniki dla różnych wartości tych 2 parametrów.
+
+```{r zad3_get_results}
+# Generate orthonormal X common for all experiments
+set.seed(1)
+p = 1000
+X = randortho(p)
+# Define parameters
+epsilons = c(0.01, 0.05, 0.1)
+taus = c(1.5*sqrt(2*log(1000)), 3*sqrt(2*log(1000)))
+
+# Define functions
+l2 = function(vector){sqrt(sum(vector^2))}
+
+run_single_experiment = function(X, sig = 1, alpha = 0.05){
+  # Generate random epsilon, beta and compute Y
+  p = nrow(X)
+  beta_true = rnorm(p, 0, tau)
+  where_zeros = which(as.logical(rbinom(p, 1, 1-eps)))
+  beta_true[where_zeros] = 0
+  Y = X %*% beta_true + rnorm(p, 0, sig)
+  # Define square error (MSE gonna be SE averaged over replications of this e.)
+  SE = function(estimator){sum((beta_true - estimator)^2)}
+  # Compute beta_LS and p-values for known sigma = 1
+  beta_LS = as.numeric(t(X) %*% Y)
+  pvals_LS = 2*(1-pnorm(abs(beta_LS), mean = 0, sd = sig))
+  # Estimate James-Stein  (2 estimators for unknown mu)
+  c_JS = 1 - (p-2)*sig^2/(l2(beta_LS))^2
+  beta_c_JS = c_JS*beta_LS
+  d_JS = as.numeric(((p-3)*sig^2)/((p-1)*var(beta_LS))) # `var`: ma /p-1
+  beta_d_JS = (1-d_JS)*beta_LS + d_JS*mean(beta_LS)
+  # Discoveries: 
+  #   TP = true positive = true discovery;
+  #   TN = true negative = false discovery;
+  #   FP = type I error;
+  #   FN = type II error;
+  # Bonferroni
+  rejections_Bo = pvals_LS < alpha/p
+  TP_Bo = sum(rejections_Bo & (beta_true != 0))
+  FP_Bo = sum(rejections_Bo & (beta_true == 0))
+  TN_Bo = sum(!rejections_Bo & (beta_true == 0))
+  FN_Bo = sum(!rejections_Bo & (beta_true != 0))
+  # Benjamini-Hochberg
+  i_max = max(which(sort(pvals_LS) <= (alpha/p)*c(1:p)))
+  if (i_max <= 0){rejections_BH = rep.int(0, p)}
+  else {
+    rejected_ids = order(pvals_LS)[1:i_max] # find corresponding hypotheses
+    rejections_BH = rep.int(0,p)
+    rejections_BH[rejected_ids] = 1
+  }
+  TP_BH = sum(rejections_BH & (beta_true != 0))
+  FP_BH = sum(rejections_BH & (beta_true == 0))
+  TN_BH = sum(!rejections_BH & (beta_true == 0))
+  FN_BH = sum(!rejections_BH & (beta_true != 0))
+  # Bayes
+  rejections_Ba = beta_LS^2 > 2*((1+tau^2)/tau^2)*(log((1-eps)/eps) + 0.5*log(1 + tau^2))
+  TP_Ba = sum(rejections_Ba & (beta_true != 0))
+  FP_Ba = sum(rejections_Ba & (beta_true == 0))
+  TN_Ba = sum(!rejections_Ba & (beta_true == 0))
+  FN_Ba = sum(!rejections_Ba & (beta_true != 0))
+  # Hard-cut estimator
+  beta_HC_Bo = ifelse(rejections_Bo, beta_LS, 0)
+  beta_HC_BH = ifelse(rejections_BH, beta_LS, 0)
+  beta_HC_Ba = ifelse(rejections_Ba, beta_LS, 0)
+  
+  # Return results 
+  results = list(
+    SE_LS = SE(beta_LS),
+    SE_c_JS = SE(beta_c_JS),
+    SE_d_JS = SE(beta_d_JS),
+    SE_HC_Bo = SE(beta_HC_Bo),
+    SE_HC_BH = SE(beta_HC_BH),
+    SE_HC_Ba = SE(beta_HC_Ba),
+    TP_Bo = TP_Bo,
+    TP_BH = TP_BH,
+    TP_Ba = TP_Ba,
+    TN_Bo = TN_Bo,
+    TN_BH = TN_BH,
+    TN_Ba = TN_Ba,
+    FP_Bo = FP_Bo,
+    FP_BH = FP_BH,
+    FP_Ba = FP_Ba,
+    FN_Bo = FN_Bo,
+    FN_BH = FN_BH,
+    FN_Ba = FN_Ba,
+    FWER_Bo = as.numeric(FP_Bo > 1),
+    FWER_BH = as.numeric(FP_BH > 1),
+    FWER_Ba = as.numeric(FP_Ba > 1),
+    FDP_Bo = FP_Bo/max(1,FP_Bo + TP_Bo),
+    FDP_BH = FP_BH/max(1,FP_BH + TP_BH),
+    FDP_Ba = FP_Ba/max(1,FP_Ba + TP_Ba)
+  )
+  return(as.data.frame(results))
+}
+
+replicate_experiment = function(iter = 1000, X, eps, tau, sig = 1, alpha = 0.05){
+  gathered_results = list()
+  for (i in 1:iter){
+    gathered_results[[i]] = run_single_experiment(X, sig, alpha)
+  }
+  # Return gathered results as dtf
+  return(cbind(
+    no_reps = iter, 
+    tau = tau,
+    eps = eps,
+    do.call(rbind, gathered_results)
+    )
+    )
+}
+
+results_dtfs_list = list()
+for (tau in taus){
+  for (eps in epsilons){
+    i = length(results_dtfs_list) + 1
+    results_dtfs_list[[i]] = replicate_experiment(1000, X, eps, tau)
+  }
+}
+
+results_dtf = do.call(rbind, results_dtfs_list)
+```
+
+## Wykresy: Błąd średniokwadratowy
+Wykres poniżej przedstawia kwadratowy błąd predykcji uśredniony dla 1000 replikacji eksperymentu.
+```{r zad1_plots_MSE, fig.width= 14, fig.height=7}
+SE_cols = grepl("SE", names(results_dtf))
+SE_plots = list()
+plots = list()
+
+MSE_summary_list= list()
+for (tau_ in taus){
+  for (eps_ in epsilons){
+  plot_data = filter(results_dtf, (tau == tau_ & eps == eps_))[,SE_cols]
+  MSE_summary_list[[length(MSE_summary_list) + 1]] = cbind(
+    data.frame(tau = tau, eps = eps),
+    t(colMeans(plot_data))
+    )
+  plots[[length(plots)+1]] = ggplot(stack(plot_data), aes(x = ind, y = values, fill = ind)) +
+    stat_summary(fun.y= "mean", geom="bar") +
+    labs(title = paste("tau = ", round(tau_, 2), ", eps = ", eps_), x = "", y = "") + ylim(0,1200)
+  }
+}
+
+# MSE_summary_dtf = do.call(rbind, MSE_summary_list)
+# MSE_summary_dtf %>% View()
+
+top = textGrob("Błąd średniokwadratowy estymatorów (1000 powtórzeń)", gp = gpar(fontface = 1, fontsize = 16, just = "top"))
+grid_arrange_shared_legend(plots[[1]], plots[[2]], plots[[3]], plots[[4]], plots[[5]], plots[[6]], nrow = 2, ncol = 3, top = top)
+```
+
+```{r extra_theoretical_JS_MSE}
+get_expedted_MSE_c_JS = function(sig, beta_LS){
+  p = length(beta_LS)
+  M = (l2(beta_LS))^2 # mianownik
+  return (p*sig^2 - 2*sig^4*(p-2)/M)
+}
+```
+
+**Komentarz:** 
+
+- $MSE$ estymatora $\hat \beta_{LS}$ niezależnie od $\tau, \epsilon$ wynosi około 1000, zgodnie z teoretycznymi założeniami ($MSE(\hat \beta_{LS}) = p\sigma^2 = 1000)$. Równocześnie jest wyższe niż $MSE$ innych estymatorów.
+- estymatory Jamesa-Steina mają MSE na bardzo podobnym poziomie, znacznie lepsze niż estymator najmniejszych kwadratów.
+- estymatory powstałe przez twarde odcięcie są jeszcze lepsze - dla wszystkich procedur wyniki są zbliżone. Można podejrzewać, że estymatory powstałe przez twarde odcięcie są najlepsze, bo w naszej symulacji mamy do czynienia z danymi z podobnego modelu, w którym $\beta_i$ są zupełnie zerowe.
+- MSE wszystkich estymatorów oprócz LS rośnie wraz ze wzrostem $\tau$ - czyli  i ze wzrostem $\epsilon$. Większy $\epsilon$ oznacza, że prawdziwy wektor $\beta$ ma mniej zer, z kolei większe $\tau$ to większa wariancja elementu $\beta_i$. Znaczy to, że łatwiej jest estymować współczynniki w modelu z małą liczbą niezerowych $\beta_i$ o małej wariancji.
+
+Poniżej dodatkowe wykresy pudełkowe błędów kwadratowych rozważanych estymatorów:
+```{r zad1_boxplots_MSE, fig.width= 14, fig.height=7}
+SE_cols = grepl("SE", names(results_dtf))
+plots = list()
+
+for (tau_ in taus){
+  for (eps_ in epsilons){
+  plot_data = filter(results_dtf, (tau_ == tau & eps_ == eps))[,SE_cols]
+  plots[[length(plots)+1]] = ggplot(stack(plot_data), aes(x = ind, y = values, fill = ind)) +
+    geom_boxplot() +
+    stat_summary(fun.y= "mean", shape = 17) +
+    labs(title = paste("tau = ", round(tau_, 2), ", eps = ", eps_), x = "", y = "") + ylim(0,1200)
+  }
+}
+
+top = textGrob("Boxploty SE dla 1000 powtórzeń (średnia = MSE oznaczona trójkątem)", gp = gpar(fontface = 1, fontsize = 16, just = "top"))
+grid_arrange_shared_legend(plots[[1]], plots[[2]], plots[[3]], plots[[4]], plots[[5]], plots[[6]], nrow = 2, ncol = 3, top = top)
+```
+
+**Komentarz:** Można zauważyć pewien wpływ parametrów $\tau$ i $\epsilon$ na wariancję estymatorów - najbardziej widoczny jest on w przypadku estymatorów Jamesa-Steina. W ich przypadku rozrzut $PE$ na wykresach maleje wraz ze wzrostem $\epsilon$ (odsteka niezerowych $\beta_i$) - dla pozostałych estymatorów jest odwrotnie. Wydaje się, że parametr $\tau$ nie wpływa na wariancję pozostałych estymatorów, a wpływa na wariancję estymatorów Jamesa-Steina (większe $\tau$ to większa wariancja $MSE(\mu_{JS})$.
+
+## Wykresy: sumy błędów dla procedur testowania
+Na wykresach porówniujemy sumy błędów I i II rodzaju dla procedury Bonferroniego, Benjaminiego-Hochbergra i estymatora Bayesa.
+
+```{r discoveries_plots, fig.width= 14, fig.height=7}
+# błąd I rodzaju = false positive (FP)
+# błąd II rodzaju = false negative (FN)
+results_dtf$errors_Bo = results_dtf$FP_Bo + results_dtf$FN_Bo
+results_dtf$errors_BH = results_dtf$FP_BH + results_dtf$FN_BH
+results_dtf$errors_Ba = results_dtf$FP_Ba + results_dtf$FN_Ba
+
+errors_cols = grepl("errors", names(results_dtf))
+plots = list()
+
+for (tau_ in taus){
+  for (eps_ in epsilons){
+  plot_data = filter(results_dtf, (tau_ == tau & eps_ == eps))[,errors_cols]
+  plots[[length(plots)+1]] = ggplot(stack(plot_data), aes(x = ind, y = values, fill = ind)) +
+    geom_boxplot() +
+    stat_summary(fun.y= "mean", shape = 17) +
+    labs(title = paste("tau = ", round(tau_, 2), ", eps = ", eps_), x = "", y = "") + ylim(0,110)
+  }
+}
+
+top = textGrob("Boxploty sumy błędów I i II rodzaju dla 1000 powtórzeń (średnia = MSE oznaczona trójkątem)", gp = gpar(fontface = 1, fontsize = 16, just = "top"))
+grid_arrange_shared_legend(plots[[1]], plots[[2]], plots[[3]], plots[[4]], plots[[5]], plots[[6]], nrow = 2, ncol = 3, top = top)
+```
+
+**Komentarz:** 
+
+- Suma błędów I i II rodzaju jest na podobnym poziomie zarówno pod względem średniej, jak i wariancji.
+- Można zauważyć wpływ parametrów eksperymentu na sumy błędów - im większy jest $\epsilon$, tym więcej jest błędów dla każdej procedury. W przypadku $\tau$ zależność jest odwrotna i mniej widoczna.
+- Procedura Bonferroniego jest trochę gorsza niż 2 pozostałe.
+
+Pominęłam podpunkty a. i b. w zadaniu, gdyż ich wyniki (tzn. wyniki dla tylko 1 replikacji) w jakiś sposób zawierają się w wykresach pudełkowych.
